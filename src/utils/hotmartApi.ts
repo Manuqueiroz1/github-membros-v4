@@ -150,6 +150,13 @@ const searchInLocalDatabase = async (email: string): Promise<boolean> => {
 // 🔧 FUNÇÃO PRINCIPAL PARA VERIFICAR COMPRA NA HOTMART (MELHORADA)
 export const verifyHotmartPurchase = async (email: string): Promise<boolean> => {
   try {
+    // 🔧 VERIFICAR PRIMEIRO EM ALUNOS MANUAIS
+    const { checkEmailExists } = await import('./studentManager');
+    const existsInManual = await checkEmailExists(email);
+    if (existsInManual) {
+      return true;
+    }
+
     // 🔧 E-MAILS DE TESTE - REMOVER EM PRODUÇÃO
     const testEmails = [
       'teste@teacherpoli.com',

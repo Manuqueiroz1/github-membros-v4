@@ -3,6 +3,7 @@ import { Settings, Plus, Edit3, Save, X, Upload, Trash2, Eye, EyeOff, ArrowLeft,
 import { BonusResource, BonusLesson, QuizQuestion } from '../types';
 import { bonusResources } from '../data/bonusData';
 import { OnboardingVideo, PopupContent, getOnboardingVideos, getPopupContents, saveOnboardingVideos, savePopupContents } from '../data/onboardingData';
+import { Student, addStudent, getStudents, removeStudent } from '../utils/studentManager';
 
 interface AdminPanelProps {
   isVisible: boolean;
@@ -11,7 +12,7 @@ interface AdminPanelProps {
 }
 
 export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'bonuses' | 'lessons' | 'exercises' | 'onboarding' | 'popups'>('bonuses');
+  const [activeTab, setActiveTab] = useState<'bonuses' | 'lessons' | 'exercises' | 'onboarding' | 'popups' | 'students'>('bonuses');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -55,7 +56,8 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
               { id: 'lessons', label: 'Gerenciar Aulas', icon: '📚' },
               { id: 'exercises', label: 'Gerenciar Exercícios', icon: '🧠' },
               { id: 'onboarding', label: 'Comece por Aqui', icon: '🚀' },
-              { id: 'popups', label: 'Pop-ups', icon: '💬' }
+              { id: 'popups', label: 'Pop-ups', icon: '💬' },
+              { id: 'students', label: 'Gerenciar Alunos', icon: '👥' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -80,6 +82,7 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
           {activeTab === 'exercises' && <ExerciseManagement />}
           {activeTab === 'onboarding' && <OnboardingManagement />}
           {activeTab === 'popups' && <PopupManagement />}
+          {activeTab === 'students' && <StudentManagement />}
         </div>
       </div>
     </div>
@@ -1184,6 +1187,266 @@ function PopupManagement() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Componente para gerenciar alunos
+function StudentManagement() {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newStudent, setNewStudent] = useState({
+    name: '',
+    email: '',
+    notes: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Carregar alunos ao montar o componente
+  React.useEffect(() => {
+    loadStudents();
+  }, []);
+
+  const loadStudents = async () => {
+    try {
+      const studentList = await getStudents();
+      setStudents(studentList);
+    } catch (error) {
+      console.error('Erro ao carregar alunos:', error);
+    }
+  };
+
+  const handleAddStudent = async () => {
+    if (!newStudent.name.trim() || !newStudent.email.trim()) {
+      alert('Nome e email são obrigatórios');
+      return;
+    }
+
+    // Validar formato do email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newStudent.email)) {
+      alert('Por favor, insira um email válido');
+      return;
+    }
+
+    // Verificar se email já existe
+    if (students.some(student => student.email.toLowerCase() === newStudent.email.toLowerCase())) {
+      alert('Este email já está cadastrado');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const student = await addStudent({
+        name: newStudent.name.trim(),
+        email: newStudent.email.toLowerCase().trim(),
+        notes: newStudent.notes.trim(),
+        addedBy: 'admin',
+        addedAt: new Date()
+      });
+
+      setStudents(prev => [...prev, student]);
+      setNewStudent({ name: '', email: '', notes: '' });
+      setShowAddForm(false);
+      alert('Aluno adicionado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao adicionar aluno:', error);
+      alert('Erro ao adicionar aluno. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveStudent = async (studentId: string) => {
+    if (!confirm('Tem certeza que deseja remover este aluno? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      await removeStudent(studentId);
+      setStudents(prev => prev.filter(student => student.id !== studentId));
+      alert('Aluno removido com sucesso!');
+    } catch (error) {
+      console.error('Erro ao remover aluno:', error);
+      alert('Erro ao remover aluno. Tente novamente.');
+    }
+  };
+
+  const filteredStudents = students.filter(student =>
+    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className="text-lg font-semibold">Gerenciar Alunos</h3>
+          <p className="text-sm text-gray-600">Adicione alunos manualmente à plataforma</p>
+        </div>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar Aluno
+        </button>
+      </div>
+
+      {/* Formulário de Adicionar Aluno */}
+      {showAddForm && (
+        <div className="bg-gray-50 rounded-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-semibold">Adicionar Novo Aluno</h4>
+            <button
+              onClick={() => {
+                setShowAddForm(false);
+                setNewStudent({ name: '', email: '', notes: '' });
+              }}
+              className="text-gray-500 hover:text-gray-700 p-2"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nome Completo *
+              </label>
+              <input
+                type="text"
+                value={newStudent.name}
+                onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                placeholder="Nome do aluno"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email *
+              </label>
+              <input
+                type="email"
+                value={newStudent.email}
+                onChange={(e) => setNewStudent(prev => ({ ...prev, email: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                placeholder="email@exemplo.com"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Observações (opcional)
+            </label>
+            <textarea
+              value={newStudent.notes}
+              onChange={(e) => setNewStudent(prev => ({ ...prev, notes: e.target.value }))}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              placeholder="Observações sobre o aluno..."
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setShowAddForm(false);
+                setNewStudent({ name: '', email: '', notes: '' });
+              }}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleAddStudent}
+              disabled={isLoading || !newStudent.name.trim() || !newStudent.email.trim()}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Adicionando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Adicionar Aluno
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Barra de Pesquisa */}
+      <div className="mb-6">
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+          placeholder="Pesquisar por nome ou email..."
+        />
+      </div>
+
+      {/* Lista de Alunos */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="p-4 border-b border-gray-200">
+          <h4 className="font-semibold text-gray-900">
+            Alunos Cadastrados ({filteredStudents.length})
+          </h4>
+        </div>
+        
+        {filteredStudents.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            {searchTerm ? 'Nenhum aluno encontrado com este termo de busca.' : 'Nenhum aluno cadastrado ainda.'}
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {filteredStudents.map((student) => (
+              <div key={student.id} className="p-4 hover:bg-gray-50">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h5 className="font-medium text-gray-900">{student.name}</h5>
+                    <p className="text-sm text-gray-600">{student.email}</p>
+                    {student.notes && (
+                      <p className="text-sm text-gray-500 mt-1">{student.notes}</p>
+                    )}
+                    <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400">
+                      <span>Adicionado em: {new Date(student.addedAt).toLocaleDateString('pt-BR')}</span>
+                      <span>Por: {student.addedBy}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveStudent(student.id)}
+                    className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors flex items-center"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Remover
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Informações Adicionais */}
+      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 className="font-medium text-blue-900 mb-2">ℹ️ Informações Importantes</h4>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>• Alunos adicionados manualmente terão acesso imediato à plataforma</li>
+          <li>• Eles receberão um email com instruções para criar sua senha</li>
+          <li>• O sistema verificará automaticamente se o email já existe</li>
+          <li>• Apenas administradores podem adicionar/remover alunos manualmente</li>
+        </ul>
+      </div>
     </div>
   );
 }
