@@ -3,7 +3,20 @@ import { X, Settings, Users, BookOpen, MessageSquare, Plus, Search, Trash2, Eye,
 import { isAdmin } from '../utils/adminConfig';
 import { getOnboardingVideos, saveOnboardingVideos, getPopupContents, savePopupContents, type OnboardingVideo, type PopupContent } from '../data/onboardingData';
 import { bonusResources } from '../data/bonusData';
-import { addStudent, getStudents, removeStudent, getStudentStats, searchStudents, type ManualStudent } from '../utils/studentManager';
+import { addStudent, getStudents, removeStudent, getStudentStats, searchStudents } from '../utils/studentManager';
+
+// Tipo local para evitar dependência do Supabase
+interface ManualStudent {
+  id: string;
+  name: string;
+  email: string;
+  notes?: string;
+  added_by: string;
+  added_at: string;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+}
 
 interface AdminPanelProps {
   isVisible: boolean;

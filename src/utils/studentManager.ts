@@ -1,4 +1,36 @@
-import { supabase, type ManualStudent, type CreateStudentData } from '../lib/supabase';
+// Importações condicionais para evitar erros quando Supabase não está configurado
+let supabase: any = null;
+let ManualStudent: any = null;
+let CreateStudentData: any = null;
+
+try {
+  const supabaseModule = await import('../lib/supabase');
+  supabase = supabaseModule.supabase;
+  ManualStudent = supabaseModule.ManualStudent;
+  CreateStudentData = supabaseModule.CreateStudentData;
+} catch (error) {
+  console.warn('Supabase não configurado, usando modo offline');
+}
+
+// Tipos locais para quando Supabase não está disponível
+interface LocalManualStudent {
+  id: string;
+  name: string;
+  email: string;
+  notes?: string;
+  added_by: string;
+  added_at: string;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+}
+
+interface LocalCreateStudentData {
+  name: string;
+  email: string;
+  notes?: string;
+  added_by: string;
+}
 
 // 🔧 FUNÇÃO PARA ADICIONAR ALUNO MANUALMENTE
 export const addStudent = async (studentData: CreateStudentData): Promise<ManualStudent> => {
@@ -229,8 +261,17 @@ export const getStudentStats = async (): Promise<{
 };
 
 // 🔧 FUNÇÃO PARA BUSCAR ALUNOS COM FILTROS
-export const searchStudents = async (query: string): Promise<ManualStudent[]> => {
+export const searchStudents = async (query: string): Promise<LocalManualStudent[]> => {
   try {
+    // Se Supabase não estiver configurado, usar localStorage
+    if (!supabase) {
+      const students = getStudentsLocal();
+      return students.filter(s => 
+        s.name.toLowerCase().includes(query.toLowerCase()) ||
+        s.email.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+
     const { data, error } = await supabase
       .from('manual_students')
       .select('*')
