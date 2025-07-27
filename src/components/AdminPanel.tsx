@@ -137,6 +137,84 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
     }
   };
 
+  const handleAddNewBonus = () => {
+    setIsAddingBonus(true);
+  };
+
+  const handleCreateBonus = () => {
+    if (!newBonus.title.trim() || !newBonus.description.trim()) {
+      alert('Título e descrição são obrigatórios');
+      return;
+    }
+
+    const bonusId = 'bonus_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
+    const newBonusResource = {
+      id: bonusId,
+      title: newBonus.title.trim(),
+      description: newBonus.description.trim(),
+      type: newBonus.type,
+      thumbnail: newBonus.thumbnail || 'https://images.pexels.com/photos/4145190/pexels-photo-4145190.jpeg?auto=compress&cs=tinysrgb&w=800',
+      totalLessons: newBonus.totalLessons,
+      totalDuration: newBonus.totalDuration || '1h',
+      rating: newBonus.rating,
+      downloads: 0,
+      lessons: [
+        {
+          id: '1',
+          title: 'Aula 1: Introdução',
+          description: 'Primeira aula do curso',
+          videoUrl: 'https://www.youtube.com/embed/mttHTuEK5Xs',
+          duration: '15:00',
+          textContent: `# ${newBonus.title}\n\nBem-vindo ao curso! Esta é a primeira aula.\n\n## Conteúdo da Aula\n\nAqui você pode adicionar o conteúdo da aula em markdown.`,
+          exercises: [
+            {
+              id: '1',
+              question: 'Esta é uma pergunta de exemplo?',
+              options: [
+                'Sim, é uma pergunta de exemplo',
+                'Não, não é uma pergunta',
+                'Talvez seja uma pergunta',
+                'Não sei responder'
+              ],
+              correctAnswer: 0,
+              explanation: 'Esta é realmente uma pergunta de exemplo para demonstrar o sistema.'
+            }
+          ],
+          completed: false
+        }
+      ]
+    };
+
+    const updatedBonuses = [...bonuses, newBonusResource];
+    setBonuses(updatedBonuses);
+    
+    // Reset form
+    setNewBonus({
+      title: '',
+      description: '',
+      type: 'course',
+      thumbnail: '',
+      totalLessons: 0,
+      totalDuration: '',
+      rating: 4.5
+    });
+    setIsAddingBonus(false);
+    
+    alert('Bônus criado com sucesso!');
+  };
+
+  const handleRemoveBonus = (bonusIndex: number) => {
+    const bonus = bonuses[bonusIndex];
+    if (!confirm(`Tem certeza que deseja remover o bônus "${bonus.title}"?`)) {
+      return;
+    }
+    
+    const updatedBonuses = bonuses.filter((_, index) => index !== bonusIndex);
+    setBonuses(updatedBonuses);
+    alert('Bônus removido com sucesso!');
+  };
+
   const saveVideoChanges = () => {
     saveOnboardingVideos(videos);
     window.dispatchEvent(new Event('onboardingDataUpdated'));
@@ -704,7 +782,7 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
                           />
                           <button
-                            onClick={() => handleRemoveBonus(bonusIndex)}
+                            onClick={() => handleRemoveBonus(index)}
                             className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="Remover bônus"
                           >
