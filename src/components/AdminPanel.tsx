@@ -33,6 +33,18 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
     notes: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Bonus management state
+  const [isAddingBonus, setIsAddingBonus] = useState(false);
+  const [newBonus, setNewBonus] = useState({
+    title: '',
+    description: '',
+    type: 'course' as 'course' | 'ebook' | 'guide' | 'audio',
+    thumbnail: '',
+    totalLessons: 0,
+    totalDuration: '',
+    rating: 4.5
+  });
 
   // Load data on mount
   useEffect(() => {
@@ -491,7 +503,151 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
 
               {/* Bonus Resources */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recursos Bônus</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Recursos Bônus</h3>
+                  <button
+                    onClick={handleAddNewBonus}
+                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Novo Bônus
+                  </button>
+                </div>
+                
+                {/* Add New Bonus Form */}
+                {isAddingBonus && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Criar Novo Bônus</h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Título *</label>
+                        <input
+                          type="text"
+                          value={newBonus.title}
+                          onChange={(e) => setNewBonus(prev => ({ ...prev, title: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Nome do bônus"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Tipo *</label>
+                        <select
+                          value={newBonus.type}
+                          onChange={(e) => setNewBonus(prev => ({ ...prev, type: e.target.value as any }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="course">Curso</option>
+                          <option value="ebook">E-book</option>
+                          <option value="guide">Guia</option>
+                          <option value="audio">Áudio</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Descrição *</label>
+                      <textarea
+                        value={newBonus.description}
+                        onChange={(e) => setNewBonus(prev => ({ ...prev, description: e.target.value }))}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Descrição do bônus"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Total de Aulas</label>
+                        <input
+                          type="number"
+                          value={newBonus.totalLessons}
+                          onChange={(e) => setNewBonus(prev => ({ ...prev, totalLessons: parseInt(e.target.value) || 0 }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          min="0"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Duração Total</label>
+                        <input
+                          type="text"
+                          value={newBonus.totalDuration}
+                          onChange={(e) => setNewBonus(prev => ({ ...prev, totalDuration: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="ex: 2h 30min"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Avaliação</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="5"
+                          value={newBonus.rating}
+                          onChange={(e) => setNewBonus(prev => ({ ...prev, rating: parseFloat(e.target.value) || 0 }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">URL da Thumbnail</label>
+                      <input
+                        type="url"
+                        value={newBonus.thumbnail}
+                        onChange={(e) => setNewBonus(prev => ({ ...prev, thumbnail: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="https://exemplo.com/imagem.jpg"
+                      />
+                      {newBonus.thumbnail && (
+                        <div className="mt-2">
+                          <img 
+                            src={newBonus.thumbnail} 
+                            alt="Preview" 
+                            className="w-32 h-20 object-cover rounded border"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={handleCreateBonus}
+                        disabled={!newBonus.title || !newBonus.description}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Criar Bônus
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setIsAddingBonus(false);
+                          setNewBonus({
+                            title: '',
+                            description: '',
+                            type: 'course',
+                            thumbnail: '',
+                            totalLessons: 0,
+                            totalDuration: '',
+                            rating: 4.5
+                          });
+                        }}
+                        className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {bonuses.map((bonus, index) => (
                     <div key={bonus.id} className="bg-gray-50 p-4 rounded-lg">
@@ -547,6 +703,13 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
                             }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
                           />
+                          <button
+                            onClick={() => handleRemoveBonus(bonusIndex)}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Remover bônus"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
