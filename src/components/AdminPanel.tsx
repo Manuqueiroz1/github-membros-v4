@@ -3,20 +3,7 @@ import { X, Settings, Users, BookOpen, MessageSquare, Plus, Search, Trash2, Eye,
 import { isAdmin } from '../utils/adminConfig';
 import { getOnboardingVideos, saveOnboardingVideos, getPopupContents, savePopupContents, type OnboardingVideo, type PopupContent } from '../data/onboardingData';
 import { bonusResources } from '../data/bonusData';
-import { addStudent, getStudents, removeStudent, getStudentStats, searchStudents } from '../utils/studentManager';
-
-// Tipo local para evitar dependência do Supabase
-interface ManualStudent {
-  id: string;
-  name: string;
-  email: string;
-  notes?: string;
-  added_by: string;
-  added_at: string;
-  status: 'active' | 'inactive';
-  created_at: string;
-  updated_at: string;
-}
+import { addStudent, getStudents, removeStudent, getStudentStats, searchStudents, type ManualStudent, type CreateStudentData } from '../utils/studentManager';
 
 interface AdminPanelProps {
   isVisible: boolean;
@@ -98,12 +85,15 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
 
     try {
       setIsLoading(true);
-      await addStudent({
+      const studentData: CreateStudentData = {
         name: newStudent.name.trim(),
         email: newStudent.email.trim().toLowerCase(),
         notes: newStudent.notes.trim(),
         added_by: userEmail
-      });
+      };
+      
+      const result = await addStudent(studentData);
+      console.log('Aluno adicionado com sucesso:', result);
       
       setNewStudent({ name: '', email: '', notes: '' });
       setIsAddingStudent(false);

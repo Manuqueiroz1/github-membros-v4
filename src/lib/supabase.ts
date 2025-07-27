@@ -10,7 +10,9 @@ export const supabase = (supabaseUrl && supabaseAnonKey)
 
 // Log para debug
 if (!supabase) {
-  console.warn('Supabase não configurado - usando modo offline');
+  console.log('Supabase não configurado - usando modo offline com localStorage');
+} else {
+  console.log('Supabase configurado e conectado');
 }
 
 // Tipos para TypeScript
