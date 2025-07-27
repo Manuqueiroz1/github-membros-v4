@@ -7,6 +7,7 @@ export interface OnboardingVideo {
   completed: boolean;
   locked: boolean;
   embedUrl: string;
+  thumbnail?: string;
 }
 
 export interface PopupContent {

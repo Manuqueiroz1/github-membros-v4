@@ -46,6 +46,16 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
     rating: 4.5
   });
 
+  // Video management state
+  const [isAddingVideo, setIsAddingVideo] = useState(false);
+  const [newVideo, setNewVideo] = useState({
+    title: '',
+    description: '',
+    duration: '',
+    embedUrl: '',
+    thumbnail: ''
+  });
+
   // Load data on mount
   useEffect(() => {
     if (isVisible) {
@@ -202,6 +212,52 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
     setIsAddingBonus(false);
     
     alert('Bônus criado com sucesso!');
+  };
+
+  const handleAddVideo = () => {
+    if (!newVideo.title.trim() || !newVideo.embedUrl.trim()) {
+      alert('Título e URL do vídeo são obrigatórios');
+      return;
+    }
+
+    const videoId = (videos.length + 1).toString();
+    
+    const newVideoData = {
+      id: videoId,
+      title: newVideo.title.trim(),
+      description: newVideo.description.trim(),
+      duration: newVideo.duration || '0:00',
+      completed: false,
+      locked: false,
+      embedUrl: newVideo.embedUrl.trim(),
+      thumbnail: newVideo.thumbnail || undefined
+    };
+
+    const updatedVideos = [...videos, newVideoData];
+    setVideos(updatedVideos);
+    
+    // Reset form
+    setNewVideo({
+      title: '',
+      description: '',
+      duration: '',
+      embedUrl: '',
+      thumbnail: ''
+    });
+    setIsAddingVideo(false);
+    
+    alert('Vídeo adicionado com sucesso!');
+  };
+
+  const handleRemoveVideo = (videoIndex: number) => {
+    const video = videos[videoIndex];
+    if (!confirm(`Tem certeza que deseja remover o vídeo "${video.title}"?`)) {
+      return;
+    }
+    
+    const updatedVideos = videos.filter((_, index) => index !== videoIndex);
+    setVideos(updatedVideos);
+    alert('Vídeo removido com sucesso!');
   };
 
   const handleRemoveBonus = (bonusIndex: number) => {
@@ -509,10 +565,134 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
             <div className="space-y-8">
               {/* Onboarding Videos */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Vídeos de Onboarding</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Vídeos de Onboarding</h3>
+                  <button
+                    onClick={() => setIsAddingVideo(true)}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Vídeo
+                  </button>
+                </div>
+                
+                {/* Add New Video Form */}
+                {isAddingVideo && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Adicionar Novo Vídeo</h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Título *</label>
+                        <input
+                          type="text"
+                          value={newVideo.title}
+                          onChange={(e) => setNewVideo(prev => ({ ...prev, title: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Título do vídeo"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Duração</label>
+                        <input
+                          type="text"
+                          value={newVideo.duration}
+                          onChange={(e) => setNewVideo(prev => ({ ...prev, duration: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="ex: 2:30"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
+                      <textarea
+                        value={newVideo.description}
+                        onChange={(e) => setNewVideo(prev => ({ ...prev, description: e.target.value }))}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Descrição do vídeo"
+                      />
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">URL do Vídeo (YouTube Embed) *</label>
+                      <input
+                        type="url"
+                        value={newVideo.embedUrl}
+                        onChange={(e) => setNewVideo(prev => ({ ...prev, embedUrl: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="https://www.youtube.com/embed/VIDEO_ID"
+                      />
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Thumbnail/Capa do Vídeo</label>
+                      <input
+                        type="url"
+                        value={newVideo.thumbnail}
+                        onChange={(e) => setNewVideo(prev => ({ ...prev, thumbnail: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="https://exemplo.com/thumbnail.jpg"
+                      />
+                      {newVideo.thumbnail && (
+                        <div className="mt-2">
+                          <img 
+                            src={newVideo.thumbnail} 
+                            alt="Preview da thumbnail" 
+                            className="w-32 h-20 object-cover rounded border"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={handleAddVideo}
+                        disabled={!newVideo.title || !newVideo.embedUrl}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adicionar Vídeo
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setIsAddingVideo(false);
+                          setNewVideo({
+                            title: '',
+                            description: '',
+                            duration: '',
+                            embedUrl: '',
+                            thumbnail: ''
+                          });
+                        }}
+                        className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="space-y-4">
                   {videos.map((video, index) => (
                     <div key={video.id} className="bg-gray-50 p-4 rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-base font-semibold text-gray-900">Vídeo {index + 1}</h4>
+                        <button
+                          onClick={() => handleRemoveVideo(index)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remover vídeo"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Título</label>
@@ -567,6 +747,32 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
                           placeholder="https://www.youtube.com/embed/VIDEO_ID"
                         />
+                      </div>
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Thumbnail/Capa do Vídeo</label>
+                        <input
+                          type="url"
+                          value={video.thumbnail || ''}
+                          onChange={(e) => {
+                            const newVideos = [...videos];
+                            newVideos[index].thumbnail = e.target.value;
+                            setVideos(newVideos);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                          placeholder="https://exemplo.com/thumbnail.jpg"
+                        />
+                        {video.thumbnail && (
+                          <div className="mt-2">
+                            <img 
+                              src={video.thumbnail} 
+                              alt="Preview da thumbnail" 
+                              className="w-32 h-20 object-cover rounded border"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -755,6 +961,32 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
                         />
                       </div>
+                      <div className="mb-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Thumbnail/Capa</label>
+                        <input
+                          type="url"
+                          value={bonus.thumbnail}
+                          onChange={(e) => {
+                            const newBonuses = [...bonuses];
+                            newBonuses[index].thumbnail = e.target.value;
+                            setBonuses(newBonuses);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                          placeholder="https://exemplo.com/imagem.jpg"
+                        />
+                        {bonus.thumbnail && (
+                          <div className="mt-2">
+                            <img 
+                              src={bonus.thumbnail} 
+                              alt="Preview da capa" 
+                              className="w-32 h-20 object-cover rounded border"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Aulas</label>
@@ -781,14 +1013,17 @@ export default function AdminPanel({ isVisible, onToggle, userEmail }: AdminPane
                             }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
                           />
-                          <button
-                            onClick={() => handleRemoveBonus(index)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Remover bônus"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
                         </div>
+                      </div>
+                      <div className="mt-3 flex justify-end">
+                        <button
+                          onClick={() => handleRemoveBonus(index)}
+                          className="flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remover bônus"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remover
+                        </button>
                       </div>
                     </div>
                   ))}
