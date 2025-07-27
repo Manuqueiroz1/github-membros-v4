@@ -1,54 +1,48 @@
-// Gerenciador de alunos para administradores
-export interface Student {
-  id: string;
-  name: string;
-  email: string;
-  notes?: string;
-  addedBy: string;
-  addedAt: Date;
-  status: 'active' | 'inactive';
-}
-
-// Chave para armazenar alunos no localStorage (temporário)
-const STUDENTS_STORAGE_KEY = 'teacherpoli_manual_students';
+import { supabase, type ManualStudent, type CreateStudentData } from '../lib/supabase';
 
 // 🔧 FUNÇÃO PARA ADICIONAR ALUNO MANUALMENTE
-export const addStudent = async (studentData: Omit<Student, 'id' | 'status'>): Promise<Student> => {
+export const addStudent = async (studentData: CreateStudentData): Promise<ManualStudent> => {
   try {
-    const student: Student = {
-      id: `student-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      ...studentData,
-      status: 'active'
-    };
+    // Verificar se email já existe
+    const { data: existingStudent } = await supabase
+      .from('manual_students')
+      .select('email')
+      .eq('email', studentData.email.toLowerCase())
+      .single();
 
-    // 🔧 IMPLEMENTAÇÃO TEMPORÁRIA - LOCALSTORAGE
-    // Em produção, substituir por chamada à API do backend
-    const existingStudents = getStoredStudents();
-    const updatedStudents = [...existingStudents, student];
-    localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(updatedStudents));
-
-    // 🔧 IMPLEMENTAÇÃO REAL - BACKEND API
-    /*
-    const response = await fetch('/api/admin/students', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAuthToken()}`
-      },
-      body: JSON.stringify(studentData)
-    });
-
-    if (!response.ok) {
-      throw new Error('Falha ao adicionar aluno');
+    if (existingStudent) {
+      throw new Error('Este email já está cadastrado');
     }
 
-    const student = await response.json();
-    */
+    // Inserir novo aluno
+    const { data, error } = await supabase
+      .from('manual_students')
+      .insert([{
+        ...studentData,
+        email: studentData.email.toLowerCase(),
+        status: 'active'
+      }])
+      .select()
+      .single();
 
-    // 🔧 ENVIAR EMAIL DE BOAS-VINDAS (IMPLEMENTAR)
-    await sendWelcomeEmail(student);
+    if (error) {
+      console.error('Erro do Supabase:', error);
+      throw new Error('Erro ao adicionar aluno: ' + error.message);
+    }
 
-    return student;
+    if (!data) {
+      throw new Error('Nenhum dado retornado após inserção');
+    }
+
+    // 🔧 ENVIAR EMAIL DE BOAS-VINDAS (OPCIONAL)
+    try {
+      await sendWelcomeEmail(data);
+    } catch (emailError) {
+      console.warn('Erro ao enviar email de boas-vindas:', emailError);
+      // Não falhar a operação se o email não for enviado
+    }
+
+    return data;
   } catch (error) {
     console.error('Erro ao adicionar aluno:', error);
     throw error;
@@ -56,26 +50,19 @@ export const addStudent = async (studentData: Omit<Student, 'id' | 'status'>): P
 };
 
 // 🔧 FUNÇÃO PARA BUSCAR TODOS OS ALUNOS
-export const getStudents = async (): Promise<Student[]> => {
+export const getStudents = async (): Promise<ManualStudent[]> => {
   try {
-    // 🔧 IMPLEMENTAÇÃO TEMPORÁRIA - LOCALSTORAGE
-    return getStoredStudents();
+    const { data, error } = await supabase
+      .from('manual_students')
+      .select('*')
+      .order('added_at', { ascending: false });
 
-    // 🔧 IMPLEMENTAÇÃO REAL - BACKEND API
-    /*
-    const response = await fetch('/api/admin/students', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Falha ao buscar alunos');
+    if (error) {
+      console.error('Erro do Supabase:', error);
+      throw new Error('Erro ao buscar alunos: ' + error.message);
     }
 
-    return await response.json();
-    */
+    return data || [];
   } catch (error) {
     console.error('Erro ao buscar alunos:', error);
     return [];
@@ -85,26 +72,35 @@ export const getStudents = async (): Promise<Student[]> => {
 // 🔧 FUNÇÃO PARA REMOVER ALUNO
 export const removeStudent = async (studentId: string): Promise<void> => {
   try {
-    // 🔧 IMPLEMENTAÇÃO TEMPORÁRIA - LOCALSTORAGE
-    const existingStudents = getStoredStudents();
-    const updatedStudents = existingStudents.filter(student => student.id !== studentId);
-    localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(updatedStudents));
+    const { error } = await supabase
+      .from('manual_students')
+      .delete()
+      .eq('id', studentId);
 
-    // 🔧 IMPLEMENTAÇÃO REAL - BACKEND API
-    /*
-    const response = await fetch(`/api/admin/students/${studentId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Falha ao remover aluno');
+    if (error) {
+      console.error('Erro do Supabase:', error);
+      throw new Error('Erro ao remover aluno: ' + error.message);
     }
-    */
   } catch (error) {
     console.error('Erro ao remover aluno:', error);
+    throw error;
+  }
+};
+
+// 🔧 FUNÇÃO PARA ATUALIZAR STATUS DO ALUNO
+export const updateStudentStatus = async (studentId: string, status: 'active' | 'inactive'): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('manual_students')
+      .update({ status })
+      .eq('id', studentId);
+
+    if (error) {
+      console.error('Erro do Supabase:', error);
+      throw new Error('Erro ao atualizar status: ' + error.message);
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar status:', error);
     throw error;
   }
 };
@@ -112,13 +108,15 @@ export const removeStudent = async (studentId: string): Promise<void> => {
 // 🔧 FUNÇÃO PARA VERIFICAR SE EMAIL EXISTE (MANUAL + HOTMART)
 export const checkEmailExists = async (email: string): Promise<boolean> => {
   try {
-    // Verificar em alunos manuais
-    const manualStudents = getStoredStudents();
-    const existsInManual = manualStudents.some(
-      student => student.email.toLowerCase() === email.toLowerCase()
-    );
+    // Verificar em alunos manuais no Supabase
+    const { data: manualStudent } = await supabase
+      .from('manual_students')
+      .select('email')
+      .eq('email', email.toLowerCase())
+      .eq('status', 'active')
+      .single();
 
-    if (existsInManual) {
+    if (manualStudent) {
       return true;
     }
 
@@ -132,39 +130,44 @@ export const checkEmailExists = async (email: string): Promise<boolean> => {
   }
 };
 
-// 🔧 FUNÇÃO AUXILIAR PARA LOCALSTORAGE
-const getStoredStudents = (): Student[] => {
+// 🔧 FUNÇÃO PARA BUSCAR ALUNO POR EMAIL
+export const getStudentByEmail = async (email: string): Promise<ManualStudent | null> => {
   try {
-    const stored = localStorage.getItem(STUDENTS_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const { data, error } = await supabase
+      .from('manual_students')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .eq('status', 'active')
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Erro do Supabase:', error);
+      return null;
+    }
+
+    return data;
   } catch (error) {
-    console.error('Erro ao ler alunos do localStorage:', error);
-    return [];
+    console.error('Erro ao buscar aluno por email:', error);
+    return null;
   }
 };
 
 // 🔧 FUNÇÃO PARA ENVIAR EMAIL DE BOAS-VINDAS
-const sendWelcomeEmail = async (student: Student): Promise<void> => {
+const sendWelcomeEmail = async (student: ManualStudent): Promise<void> => {
   try {
-    // 🔧 IMPLEMENTAÇÃO REAL - SERVIÇO DE EMAIL
-    /*
-    const response = await fetch('/api/emails/welcome', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAuthToken()}`
-      },
-      body: JSON.stringify({
+    // 🔧 IMPLEMENTAÇÃO COM SUPABASE EDGE FUNCTIONS
+    const { data, error } = await supabase.functions.invoke('send-welcome-email', {
+      body: {
         to: student.email,
         name: student.name,
-        type: 'manual_addition'
-      })
+        type: 'manual_addition',
+        studentId: student.id
+      }
     });
 
-    if (!response.ok) {
-      throw new Error('Falha ao enviar email de boas-vindas');
+    if (error) {
+      throw error;
     }
-    */
 
     console.log(`Email de boas-vindas enviado para: ${student.email}`);
   } catch (error) {
@@ -173,84 +176,75 @@ const sendWelcomeEmail = async (student: Student): Promise<void> => {
   }
 };
 
-// 🔧 FUNÇÃO PARA OBTER TOKEN DE AUTENTICAÇÃO
-const getAuthToken = (): string => {
-  // Implementar lógica para obter token de autenticação do admin
-  return localStorage.getItem('admin_token') || '';
-};
-
-// 🔧 FUNÇÃO PARA SINCRONIZAR COM SISTEMA DE AUTENTICAÇÃO
-export const syncStudentWithAuth = async (student: Student): Promise<void> => {
+// 🔧 FUNÇÃO PARA BUSCAR ESTATÍSTICAS
+export const getStudentStats = async (): Promise<{
+  total: number;
+  active: number;
+  inactive: number;
+  addedThisMonth: number;
+}> => {
   try {
-    // Criar entrada no sistema de autenticação
-    const response = await fetch('/api/auth/create-user', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAuthToken()}`
-      },
-      body: JSON.stringify({
-        email: student.email,
-        name: student.name,
-        source: 'manual_addition',
-        requirePasswordCreation: true
-      })
-    });
+    // Total de alunos
+    const { count: total } = await supabase
+      .from('manual_students')
+      .select('*', { count: 'exact', head: true });
 
-    if (!response.ok) {
-      throw new Error('Falha ao sincronizar com sistema de autenticação');
-    }
+    // Alunos ativos
+    const { count: active } = await supabase
+      .from('manual_students')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active');
+
+    // Alunos inativos
+    const { count: inactive } = await supabase
+      .from('manual_students')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'inactive');
+
+    // Alunos adicionados este mês
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count: addedThisMonth } = await supabase
+      .from('manual_students')
+      .select('*', { count: 'exact', head: true })
+      .gte('added_at', startOfMonth.toISOString());
+
+    return {
+      total: total || 0,
+      active: active || 0,
+      inactive: inactive || 0,
+      addedThisMonth: addedThisMonth || 0
+    };
   } catch (error) {
-    console.error('Erro ao sincronizar com sistema de autenticação:', error);
-    throw error;
+    console.error('Erro ao buscar estatísticas:', error);
+    return {
+      total: 0,
+      active: 0,
+      inactive: 0,
+      addedThisMonth: 0
+    };
   }
 };
 
-/*
-🔧 ENDPOINTS NECESSÁRIOS NO BACKEND:
+// 🔧 FUNÇÃO PARA BUSCAR ALUNOS COM FILTROS
+export const searchStudents = async (query: string): Promise<ManualStudent[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('manual_students')
+      .select('*')
+      .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+      .order('added_at', { ascending: false });
 
-1. POST /api/admin/students
-   - Adicionar aluno manualmente
-   - Validar permissões de admin
-   - Verificar se email já existe
-   - Criar entrada no sistema de auth
+    if (error) {
+      console.error('Erro do Supabase:', error);
+      throw new Error('Erro ao buscar alunos: ' + error.message);
+    }
 
-2. GET /api/admin/students
-   - Listar todos os alunos (manual + Hotmart)
-   - Paginação e filtros
-   - Apenas para admins
-
-3. DELETE /api/admin/students/:id
-   - Remover aluno manual
-   - Desativar acesso
-   - Apenas para admins
-
-4. POST /api/emails/welcome
-   - Enviar email de boas-vindas
-   - Template específico para adição manual
-   - Incluir link para criação de senha
-
-5. POST /api/auth/create-user
-   - Criar usuário no sistema de auth
-   - Marcar como "requer criação de senha"
-   - Integrar com sistema existente
-
-🔧 ESTRUTURA DO BANCO DE DADOS:
-
-Tabela: manual_students
-- id (UUID, primary key)
-- name (VARCHAR, not null)
-- email (VARCHAR, unique, not null)
-- notes (TEXT, nullable)
-- added_by (VARCHAR, not null)
-- added_at (TIMESTAMP, not null)
-- status (ENUM: active, inactive)
-- created_at (TIMESTAMP)
-- updated_at (TIMESTAMP)
-
-Índices:
-- email (único)
-- added_by
-- status
-- added_at
-*/
+    return data || [];
+  } catch (error) {
+    console.error('Erro ao buscar alunos:', error);
+    return [];
+  }
+};

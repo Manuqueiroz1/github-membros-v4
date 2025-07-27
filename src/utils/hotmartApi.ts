@@ -150,9 +150,11 @@ const searchInLocalDatabase = async (email: string): Promise<boolean> => {
 // 🔧 FUNÇÃO PRINCIPAL PARA VERIFICAR COMPRA NA HOTMART (MELHORADA)
 export const verifyHotmartPurchase = async (email: string): Promise<boolean> => {
   try {
-    // 🔧 VERIFICAR PRIMEIRO EM ALUNOS MANUAIS
-    const { checkEmailExists } = await import('./studentManager');
-    const existsInManual = await checkEmailExists(email);
+    // 🔧 VERIFICAR PRIMEIRO EM ALUNOS MANUAIS NO SUPABASE
+    const { getStudentByEmail } = await import('./studentManager');
+    const manualStudent = await getStudentByEmail(email);
+    const existsInManual = manualStudent !== null;
+    
     if (existsInManual) {
       return true;
     }
